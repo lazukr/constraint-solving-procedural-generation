@@ -1,19 +1,21 @@
-import { CellPropagator } from "./CellPropagator";
+import { CellDomainPropagator } from "./CellDomainPropagator";
 import { CellSelector } from "./CellSelector";
 import { DimensionMapper } from "./DimensionMapper";
 import { ModuleId } from "./Module";
+import { ModuleManager } from "./ModuleManager";
 import { ModuleSelector } from "./ModuleSelector";
-import { ModuleConstraints, initialConditions } from "./types";
+import { CellDomain, initialConditions } from "./types";
 
 export class SceneGenerator {
 	private readonly dimensionMapper: DimensionMapper;
-	private readonly moduleConstraints: ModuleConstraints;
-	private readonly cellPropagator: CellPropagator;
 	private readonly cellSelector: CellSelector;
 	private readonly moduleSelector: ModuleSelector;
+	private readonly moduleManager: ModuleManager;
+	private readonly cellDomainPropagator: CellDomainPropagator;
 
-	private readonly domainMap: Array<Set<number>>;
+	private readonly cellDomainMap: Array<CellDomain>;
 	private readonly collapsedMap: Array<number>;
+
 	private readonly initialConditionsCount: number;
 
 	private cellsInConsideration: number[];
@@ -22,22 +24,25 @@ export class SceneGenerator {
 		domain: Set<number>,
 		dimensionMapper: DimensionMapper,
 		initialConditions: initialConditions,
-		moduleConstraints: ModuleConstraints,
-		cellPropagator: CellPropagator,
+		moduleManager: ModuleManager,
+		cellDomainPropagator: CellDomainPropagator,
 		cellSelector: CellSelector,
 		moduleSelector: ModuleSelector
 	) {
 		this.dimensionMapper = dimensionMapper;
-		this.moduleConstraints = moduleConstraints;
-		this.cellPropagator = cellPropagator;
 		this.cellSelector = cellSelector;
 		this.moduleSelector = moduleSelector;
+		this.cellDomainPropagator = cellDomainPropagator;
+		this.moduleManager = moduleManager;
 
 		this.cellsInConsideration = [];
-		this.domainMap = this.dimensionMapper.createProjection(domain);
 		this.collapsedMap = this.dimensionMapper.createProjection(
 			ModuleId.Undetermined
 		);
+		this.cellDomainMap = this.dimensionMapper.createProjection({
+			values: domain,
+			weights: Array(domain.size + 1).fill(0),
+		});
 
 		this.initialConditionsCount = this.setInitialConditions(initialConditions);
 	}
@@ -48,14 +53,20 @@ export class SceneGenerator {
 		);
 
 		this.collapsedMap[selectedCell] = selectedModule;
+
+		// do not propagate if selected module is invalid
+		if (selectedModule === ModuleId.Invalid) {
+			return;
+		}
+
 		const validAdjacents = this.dimensionMapper
 			.getAdjacents(selectedCell)
 			.filter((adj) => this.collapsedMap[adj] === ModuleId.Undetermined);
 
 		for (const adjacent of validAdjacents) {
-			this.domainMap[adjacent] = this.cellPropagator.propagate(
-				this.domainMap[adjacent],
-				this.moduleConstraints[this.collapsedMap[selectedCell]]
+			this.cellDomainMap[adjacent] = this.cellDomainPropagator.propagate(
+				this.cellDomainMap[adjacent],
+				this.moduleManager.constraints[this.collapsedMap[selectedCell]]
 			);
 
 			this.cellsInConsideration.push(adjacent);
@@ -73,8 +84,10 @@ export class SceneGenerator {
 			const selectedCell: number = this.cellSelector.select(
 				this.cellsInConsideration
 			);
-			const domain = this.domainMap[selectedCell];
+
+			const domain = this.cellDomainMap[selectedCell];
 			const selectedModule = this.moduleSelector.select(domain);
+
 			this.step(selectedCell, selectedModule);
 		}
 
