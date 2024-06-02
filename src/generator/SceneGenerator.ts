@@ -78,6 +78,9 @@ export class SceneGenerator {
 			this.dimensionMapper.maxIndexSize - this.initialConditionsCount;
 
 		iterations = iterations ?? 0;
+
+		// in theory, this should be the number of required propagations
+		// to cover the whole map
 		const numGenerations = iterations === 0 ? maxIterations : iterations;
 
 		for (let i = 0; i < numGenerations; i++) {
