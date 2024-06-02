@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  build:
+    name: Build
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    name: Deploy
+    needs: [build]
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
