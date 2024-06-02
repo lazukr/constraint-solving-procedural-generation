@@ -2,7 +2,7 @@
   "name": "constraint-solving-procedural-generation",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://lazukr.github.io/constraint-solving-procedural-generation",
+  "homepage": "https://lazukr.github.io/constraint-solving-procedural-generation/",
   "type": "module",
   "scripts": {
     "dev": "vite",
